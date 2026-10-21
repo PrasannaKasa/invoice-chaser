@@ -1,0 +1,11 @@
+{% extends "base.html" %}{% block title %}Create account · Invoice Chaser{% endblock %}
+{% block content %}
+<section class="auth-card"><div class="eyebrow">GET STARTED</div><h1>Create your workspace</h1><p class="muted">Keep client invoices, payment history and reminders in one place.</p>
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+<form method="post" action="/register" class="stack">
+<label>Your name<input name="name" required placeholder="e.g. Vijaya Prasanna"></label>
+<label>Business name<input name="business_name" placeholder="e.g. Prasanna Studio"></label>
+<label>Email<input name="email" type="email" required placeholder="you@example.com"></label>
+<label>Password<input name="password" type="password" minlength="8" required placeholder="At least 8 characters"></label>
+<button class="primary">Create account</button></form><p class="muted center">Already registered? <a href="/login">Log in</a></p></section>
+{% endblock %}

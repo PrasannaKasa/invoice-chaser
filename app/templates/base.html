@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block title %}Invoice Chaser AI{% endblock %}</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="topbar"><a class="brand" href="/">INVOICE<span>CHASER</span><small>AI WORKSPACE</small></a>
+{% if user %}<div class="userbox"><span>{{ user.name }} · {{ user.business_name }}</span><form method="post" action="/logout"><button class="ghost">Log out</button></form></div>{% endif %}
+</header>
+<main class="container">{% block content %}{% endblock %}</main>
+<footer>Invoice Chaser AI · Polite reminders, clearer cash flow</footer>
+</body></html>

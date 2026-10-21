@@ -1,0 +1,41 @@
+{% extends "base.html" %}{% block title %}Dashboard · Invoice Chaser AI{% endblock %}
+{% block content %}
+<div class="hero"><div><div class="eyebrow">YOUR MONEY, IN MOTION</div><h1>Good to see you, {{ user.name.split(' ')[0] }}.</h1><p class="muted">Track invoices, record payments and keep follow-ups professional.</p></div><div class="date-pill">{{ today.strftime('%d %b %Y') }}</div></div>
+<section class="stats">
+<div class="stat"><span>Total outstanding</span><strong>₹{{ "{:,.2f}".format(outstanding) }}</strong><small>Unpaid balance across active invoices</small></div>
+<div class="stat warning"><span>Overdue amount</span><strong>₹{{ "{:,.2f}".format(overdue) }}</strong><small>Needs your attention</small></div>
+<div class="stat"><span>Due this week</span><strong>{{ due_week }}</strong><small>Invoices reaching their due date</small></div>
+<div class="stat accent"><span>Recovered this month</span><strong>₹{{ "{:,.2f}".format(recovered_month) }}</strong><small>Payments recorded after reminders</small></div>
+</section>
+<div class="grid-two">
+<section class="panel"><div class="panel-head"><div><div class="eyebrow">CLIENT DIRECTORY</div><h2>Add a client</h2></div><span class="count">{{ clients|length }} clients</span></div>
+<form method="post" action="/clients" class="form-grid">
+<label>Client name<input name="name" required placeholder="Rohit Sharma"></label><label>Company<input name="company" placeholder="Company / brand"></label>
+<label>WhatsApp number<input name="whatsapp_number" placeholder="919876543210"></label><label>Email<input name="email" type="email" placeholder="client@example.com"></label>
+<label>Reminder channel<select name="preferred_channel"><option value="demo">Demo mode</option><option value="whatsapp">WhatsApp</option><option value="email">Email (future setup)</option></select></label>
+<label class="checkline"><input type="checkbox" name="consent" value="yes"> Client has consented to WhatsApp reminders</label>
+<div class="full"><button class="primary">+ Add client</button></div></form>
+{% if clients %}<div class="client-list">{% for c in clients %}<div class="client-row"><div><strong>{{ c.name }}</strong><small>{{ c.company or c.email or 'Individual client' }}</small></div><span class="tag {{ 'green' if c.consent and not c.opted_out else 'gray' }}">{{ 'Consented' if c.consent and not c.opted_out else ('Opted out' if c.opted_out else 'No consent') }}</span><form method="post" action="/clients/{{ c.id }}/toggle-consent"><button class="small ghost">{{ 'Revoke consent' if c.consent else 'Grant consent' }}</button></form><form method="post" action="/clients/{{ c.id }}/delete" onsubmit="return confirm('Delete this client and their invoices?')"><button class="small danger-ghost">Delete</button></form></div>{% endfor %}</div>{% endif %}
+</section>
+<section class="panel"><div class="panel-head"><div><div class="eyebrow">NEW RECEIVABLE</div><h2>Record an invoice</h2></div></div>
+{% if clients %}<form method="post" action="/invoices" class="form-grid">
+<label>Client<select name="client_id" required>{% for c in clients %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}</select></label><label>Invoice number<input name="invoice_number" required placeholder="INV-001"></label>
+<label class="full">Description<input name="description" placeholder="Website design project"></label><label>Amount (₹)<input name="amount" type="number" min="0.01" step="0.01" required placeholder="25000"></label><label>Issue date<input name="issue_date" type="date" required value="{{ today.isoformat() }}"></label>
+<label>Due date<input name="due_date" type="date" required value="{{ today.isoformat() }}"></label><label>Payment link / UPI details<input name="payment_link" placeholder="name@upi or payment URL"></label>
+<div class="full"><button class="primary">+ Save invoice</button></div></form>{% else %}<p class="empty">Add a client first, then create your first invoice.</p>{% endif %}
+</section></div>
+<section class="panel invoices-panel"><div class="panel-head"><div><div class="eyebrow">RECEIVABLES</div><h2>Invoice tracker</h2></div><span class="count">{{ invoices|length }} invoices</span></div>
+{% if invoices %}<div class="table-wrap"><table><thead><tr><th>Invoice / client</th><th>Due date</th><th>Amount</th><th>Balance</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+{% for i in invoices %}<tr><td><strong>{{ i.invoice_number }}</strong><small>{{ i.client.name }}{% if i.description %} · {{ i.description }}{% endif %}</small></td><td>{{ i.due_date.strftime('%d %b %Y') }}</td><td>₹{{ "{:,.2f}".format(i.amount) }}</td><td><strong>₹{{ "{:,.2f}".format(i.remaining_balance) }}</strong></td><td><span class="tag {{ 'green' if i.display_status == 'Paid' else ('red' if i.display_status == 'Overdue' else 'blue') }}">{{ i.display_status }}</span></td><td><div class="actions">
+{% if i.display_status not in ['Paid','Cancelled'] %}<details><summary>Record payment</summary><form method="post" action="/invoices/{{ i.id }}/payment" class="mini-form"><input name="amount" type="number" step="0.01" min="0.01" max="{{ i.remaining_balance }}" placeholder="Amount" required><input name="paid_on" type="date" value="{{ today.isoformat() }}" required><input name="note" placeholder="Note (optional)"><button class="small primary">Save payment</button></form></details>
+<form method="post" action="/invoices/{{ i.id }}/remind"><button class="small ghost">Preview reminder</button></form>
+<form method="post" action="/invoices/{{ i.id }}/status"><input type="hidden" name="status" value="Cancelled"><button class="small danger-ghost">Cancel</button></form>{% endif %}
+<form method="post" action="/invoices/{{ i.id }}/delete" onsubmit="return confirm('Delete this invoice?')"><button class="small danger-ghost">Delete</button></form></div></td></tr>
+{% endfor %}</tbody></table></div>{% else %}<p class="empty">No invoices yet. Add a client and record an invoice to get started.</p>{% endif %}
+<div class="panel-foot"><span>Recovered all time: <strong>₹{{ "{:,.2f}".format(recovered) }}</strong></span><form method="post" action="/api/reminders/run"><button class="ghost">Run reminder check now</button></form></div>
+</section>
+<section class="panel"><div class="panel-head"><div><div class="eyebrow">AUDIT TRAIL</div><h2>Recent reminder activity</h2></div></div>
+{% set logs = [] %}{% for i in invoices %}{% for log in i.reminder_logs %}{% set _ = logs.append((log, i)) %}{% endfor %}{% endfor %}
+{% if logs %}<div class="activity">{% for log, i in logs|sort(attribute='0.sent_at', reverse=True) %}<div class="activity-row"><div class="activity-dot"></div><div><strong>{{ i.invoice_number }} · {{ log.tone_level }} reminder</strong><p>{{ log.message_text }}</p><small>{{ log.sent_at.strftime('%d %b %Y, %I:%M %p') }} · {{ log.status|upper }}</small></div></div>{% endfor %}</div>{% else %}<p class="empty">Reminder activity will appear here. In demo mode, messages are logged but not sent to clients.</p>{% endif %}
+</section>
+{% endblock %}
